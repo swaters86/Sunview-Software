@@ -1,0 +1,406 @@
+About
+=======================================================================================================================
+These are step by step instructions on how to implement custom rules / actions for notify a  user when the description field has been updated during an action. These rules/actions will fire for every action if  you add the CanSave rule to the After Action. Alternatively, you can add the CanSave rule to an individual action so it will only be processed for it. If the Requester modifies the description field, then an email notification will be sent out to the assignee via the Handle Description Field Change 1 (which is where the notification automation should be added to). If the assignee modifies the description field then an email will be sent out the requester via the Handle Description Field Change 2 action. If neither the assignee or requester modifies the description field but another user does, then an email will be sent out via the Handle Description Field Change 3 action. In addition, this script can be adapted for other fields as well (i.e. Notes field) and it assumes the following: 
+
+- requester will always have a value 
+- requester and assignee are selected
+- requester and assignee have email addresses
+- emails shouldn't be sent out if the requester and assignee is the same person. 
+
+
+Note: Support for the Email Connector is to be determine so there's no guarantee that this will work for the email connector. 
+
+
+Attached is an example of these rules/actions that have been applied in a WF file for the Incident Request module. 
+
+=======================================================================================================================
+
+IMPORTANT: 
+
+Before implementing this script , open up the workflow you want to implement this on in the Workflow Editor and make a backup copy of it by
+saving it under  different name. Then go to the following directory and open up the XML file for the workflow: 
+
+<ChnageGear Drive>:\Program Files (x86)\SunView Software\ChangeGear\Server\Customizations\<Workflow Module Name>\WFSchema\<Workflow File>.xml
+
+
+Implementation
+=======================================================================================================================
+
+
+1. Search for the "CanSave" rule definition in your workflow file. The definition looks like this: 
+
+<Rule name="CanSave"><Reactions></Reactions></Rule> 
+
+If it exists, then add the following lines of XML in between the Reactions tag:
+
+<Fire action="MainWorkFlow:Handle Description Field Change 1" />
+<Fire action="MainWorkFlow:Handle Description Field Change 2" />
+<Fire action="MainWorkFlow:Handle Description Field Change 3" />
+
+
+If this rule definition doesn't exist then you can add it like so in between the <Rules></Rules> tags: 
+
+<Rule name="CanSave">
+<Reactions>
+	<Fire action="MainWorkFlow:Handle Description Field Change 1" />
+	<Fire action="MainWorkFlow:Handle Description Field Change 2" />
+	<Fire action="MainWorkFlow:Handle Description Field Change 3" />
+</Reactions>
+</Rule>
+
+Note: You might not see a section for defining Rules. For example, if the <Rules></Rules> tags don't exist then your workflow file then you should add them after the closing actions tag like so: 
+
+<actions>
+
+....
+
+</actions>
+<Rules>
+	<Rule name="CanSave">
+	<Reactions>
+		<Fire action="MainWorkFlow:Handle Description Field Change 1" />
+		<Fire action="MainWorkFlow:Handle Description Field Change 2" />
+		<Fire action="MainWorkFlow:Handle Description Field Change 3" />
+	</Reactions>
+	</Rule>
+</Rules>
+
+
+2. Add the below custom actions in before the closing actions tag. The closing actions tag looks like this: </actions>
+
+
+	<!-- Start Description Field Change 1 Action -->
+		<action name="Handle Description Field Change 1" displayName="Handle Description Field Change 1" internal="False" stateless="False" showCommentsPopup="False" layout="" recalculateSLA="False" addToContextMenu="False">
+		  <Reactions>
+		    <action name="Changed by Requester Notification" type="Notify via Email" id="1" description="" enabled="true" Provider="InLineCode">
+		      <arguments>
+		        <argument name="Code">
+		          <![CDATA[WorkFlowUtilities.AddComment(Item,wfVariables);]]>
+		        </argument>
+		      </arguments>
+		      <notify template="Incident_V3_Handle Description Field Change 1_Notify via Email1" enabled="true" batch="false">
+		        <recipients>
+		          <recipient name="Assignee">17</recipient>
+		        </recipients>
+		      </notify>
+		    </action>
+		  </Reactions>
+		  <ProcessingRules>
+		    <RuleReference>HasDescriptionFieldValueChangedByRequester</RuleReference>
+		  </ProcessingRules>
+		</action>
+	<!-- End Description Field Change 1 Action -->
+
+	<!-- Start Description Field Change 2 Action -->
+		<action name="Handle Description Field Change 2" displayName="Handle Description Field Change 2" internal="False" stateless="False" showCommentsPopup="False" layout="" recalculateSLA="False" addToContextMenu="False">
+		  <Reactions>
+		    <action name="Changed by Assignee" type="Notify via Email" id="1" description="" enabled="true" Provider="InLineCode">
+		      <arguments>
+		        <argument name="Code">
+		          <![CDATA[WorkFlowUtilities.AddComment(Item,wfVariables);]]>
+		        </argument>
+		      </arguments>
+		      <notify template="Incident_V3_Handle Description Field Change 2_Notify via Email1" enabled="true" batch="false">
+		        <recipients>
+		          <recipient name="Requester">16</recipient>
+		        </recipients>
+		      </notify>
+		    </action>
+		  </Reactions>
+		  <ProcessingRules>
+		    <RuleReference>HasDescriptionFieldValueChangedByAssignee</RuleReference>
+		  </ProcessingRules>
+		</action>
+	<!-- End Description Field Change 2 Action -->
+
+
+	<!-- Start Description Field Change 3 Action -->
+		<action name="Handle Description Field Change 3" displayName="Handle Description Field Change 3" internal="False" stateless="False" showCommentsPopup="False" layout="" recalculateSLA="False" addToContextMenu="False">
+		  <Reactions>
+		    <action name="Changed by Other." type="Notify via Email" id="1" description="" enabled="true" Provider="InLineCode">
+		      <arguments>
+		        <argument name="Code">
+		          <![CDATA[WorkFlowUtilities.AddComment(Item,wfVariables);]]>
+		        </argument>
+		      </arguments>
+		      <notify template="Incident_V3_Handle Description Field Change 3_Notify via Email" enabled="true" batch="false">
+		        <recipients>
+		          <recipient name="Requester">16</recipient>
+		          <recipient name="Assignee">17</recipient>
+		        </recipients>
+		      </notify>
+		    </action>
+		  </Reactions>
+		  <ProcessingRules>
+		    <RuleReference>HasDescriptionFieldValueChangedByOther</RuleReference>
+		  </ProcessingRules>
+		</action>
+	<!-- End Description Field Change 3 Action -->
+
+
+
+
+3.  Go back to the Rules tag (<Rules>) and  insert the following custom rules. These rules are called by the above custom actions. If 
+the rule processed for each action returns true then the automations (especially the email notification automations) will run for that action. 
+
+
+<!-- Start Has Description Field Changed by Requester Rule -->
+<Rule name="HasDescriptionFieldValueChangedByRequester">
+  <![CDATA[
+
+          int ticketAssigneeID;
+
+          /* 
+          	
+          	Checks if the AssignedTo field has a value or a user selected for it. If not, then 
+          	the ticketAssigneeID variable will be assigned a value of 0 so this script doesn't
+          	crash. If the AssignedTo field does have a variable, then the OID value for the user 
+          	selected in it will be assigned to the ticketAssigneeID variable. 
+
+          */
+
+          if(Item.AssignedTo == null){
+
+            ticketAssigneeID = 0;
+
+          } else {
+
+             ticketAssigneeID = Item.AssignedTo.ID;
+
+          }
+
+
+           /* 
+           		We're assigning the OID value for the requester (who's selected in the Requester field)
+           		to the ticketRequesterID variable.
+           */
+           int ticketRequesterID = Item.Requester.ID;
+           
+           // We're assigning OID value of the logged in user to the loggedInUserID variable
+           int loggedInUserID = UserSession.GetCurrentUser(Item.UnitOfWork).ID;
+ 
+           // Logic for checking if the Requster IS the logged in user and if the Assignee IS NOT the logged in user
+           if (ticketRequesterID == loggedInUserID && ticketAssigneeID != loggedInUserID)  {
+
+            // sLogger.Info("requester updated ticket.");
+            
+            	  // Were fields modified in the ticket before the action was fired?
+                  if (wfVariables["ModifiedFields"] != null && Item.ID > 0)
+                  {
+                  	  // Are they part of the array of modified fields?
+                      if (wfVariables["ModifiedFields"] is Hashtable)
+                      {
+                      	  // If so, was one of the modified fields the description field?
+                          Hashtable modifiedFields = wfVariables["ModifiedFields"] as Hashtable;
+                          if (modifiedFields.ContainsKey("Description"))//to check if another field has changed, add an or condition like if (modifiedFields.ContainsKey("Description") || modifiedFields.ContainsKey("Notes"))
+                          {
+                              return true;
+                          }                    
+                      }
+
+                  }
+
+                  return false;
+
+            } else {
+
+              return false; 
+
+            }
+
+
+       ]]>
+</Rule>
+<!-- End Has Description Field Changed by Requester Rule -->
+
+
+<!-- Start Has Description Field Changed by Assignee Rule -->
+	<Rule name="HasDescriptionFieldValueChangedByAssignee">
+	  <![CDATA[
+
+	          int ticketAssigneeID;
+
+	          /* 
+	          	
+	          	Checks if the AssignedTo field has a value or a user selected for it. If not, then 
+	          	the ticketAssigneeID variable will be assigned a value of 0 so this script doesn't
+	          	crash. If the AssignedTo field does have a variable, then the OID value for the user 
+	          	selected in it will be assigned to the ticketAssigneeID variable. 
+
+	          */
+
+	          if(Item.AssignedTo == null){
+
+	            ticketAssigneeID = 0;
+
+	          } else {
+
+	             ticketAssigneeID = Item.AssignedTo.ID;
+
+	          }
+
+
+	           /* 
+	           		We're assigning the OID value for the requester (who's selected in the Requester field)
+	           		to the ticketRequesterID variable.
+	           */
+	           int ticketRequesterID = Item.Requester.ID;
+	           
+	           // We're assigning OID value of the logged in user to the loggedInUserID variable
+	           int loggedInUserID = UserSession.GetCurrentUser(Item.UnitOfWork).ID;
+	 
+	 		   // Logic for checking if the Assignee IS the logged in user and if the Requester IS NOT the logged in user
+	           if (ticketAssigneeID == loggedInUserID && ticketRequesterID != loggedInUserID )  {
+
+	            // sLogger.Info("assignee updated ticket.");
+
+	                  // Were fields modified in the ticket before the action was fired?
+	                  if (wfVariables["ModifiedFields"] != null && Item.ID > 0)
+	                  {
+	                  	  // Are they part of the array of modified fields?
+	                      if (wfVariables["ModifiedFields"] is Hashtable)
+	                      {
+	                      	  // If so, was one of the modified fields the description field?
+	                          Hashtable modifiedFields = wfVariables["ModifiedFields"] as Hashtable;
+	                          if (modifiedFields.ContainsKey("Description"))//to check if another field has changed, add an or condition like if (modifiedFields.ContainsKey("Description") || modifiedFields.ContainsKey("Notes"))
+	                          {
+	                              return true;
+	                          }                    
+	                      }
+	                      
+	                  }
+
+	                  return false;
+
+	            } else {
+
+	                return false; 
+
+	            }
+	              
+
+
+	       ]]>
+	</Rule>
+<!-- End Has Description Field Changed by Assignee Rule -->
+
+
+<!-- Start Has Description Field Changed by Other Rule -->
+	<Rule name="HasDescriptionFieldValueChangedByOther">
+	  <![CDATA[
+
+	          int ticketAssigneeID;
+
+	          /* 
+	          	
+	          	Checks if the AssignedTo field has a value or a user selected for it. If not, then 
+	          	the ticketAssigneeID variable will be assigned a value of 0 so this script doesn't
+	          	crash. If the AssignedTo field does have a variable, then the OID value for the user 
+	          	selected in it will be assigned to the ticketAssigneeID variable. 
+
+	          */
+
+	          if(Item.AssignedTo == null){
+
+	            ticketAssigneeID = 0;
+
+	          } else {
+
+	             ticketAssigneeID = Item.AssignedTo.ID;
+
+	          }
+
+
+	           /* 
+	           		We're assigning the OID value for the requester (who's selected in the Requester field)
+	           		to the ticketRequesterID variable.
+	           */
+	           int ticketRequesterID = Item.Requester.ID;
+	           
+	           // We're assigning OID value of the logged in user to the loggedInUserID variable
+	           int loggedInUserID = UserSession.GetCurrentUser(Item.UnitOfWork).ID;
+	 
+	           // Logic for checking if the requester IS NOT the logged in user and if the Assignee IS NOT the logged in user as well 
+	           if (ticketRequesterID != loggedInUserID && ticketAssigneeID != loggedInUserID)  {
+
+	            // sLogger.Info("neitheir the assignee or requester updated ticket.");
+	            
+	                  // Were fields modified in the ticket before the action was fired?
+	                  if (wfVariables["ModifiedFields"] != null && Item.ID > 0)
+	                  {
+	                  	  // Are they part of the array of modified fields?
+	                      if (wfVariables["ModifiedFields"] is Hashtable)
+	                      {
+	                      	  // If so, was one of the modified fields the description field?
+	                          Hashtable modifiedFields = wfVariables["ModifiedFields"] as Hashtable;
+	                          if (modifiedFields.ContainsKey("Description"))//to check if another field has changed, add an or condition like if (modifiedFields.ContainsKey("Description") || modifiedFields.ContainsKey("Notes"))
+	                          {
+	                              return true;
+	                          }                    
+	                      }
+	                      
+	                  }
+
+	                  return false;
+
+	            } else {
+
+	              return false; 
+
+	            }
+
+
+	       ]]>
+	</Rule>
+<!-- End Has Description Field Changed by Other Rule -->
+
+
+
+4. Save your changes to the XML file for your workflow. 
+
+
+5. Go to the ChangeGear Desktop Client and open up the workflow in the workflow editor.  In the actions area, check the 
+"Show All Actions" checkbox and look for the custom actions that were inserted above in the dropdown lists for actions. 
+
+6. Select each custom action and go to the automations tab for it. Delete the email notification automation for it and readd it. This so 
+the template code for the email be generated in the database. 
+
+7. Go to the recipients lists for each notification and added the appropiate recepients to the list. 
+
+
+Below is a key that should help you detemine which actions need which email notification: 
+
+Handle Description Field Change 1 = The action that fires when the Requester edits the description field. 
+
+Handle Description Field Change 2 = The action that fires when the Assignee edits the description field. 
+
+Handle Description Field Change 3 = The action that fires when neitheir the Requester or the Assignee edits the description field. 
+
+
+8. Save your changes to the workflow and exit the workflow editor. 
+
+9. Recompile the workflow by activating another workflow and then reactivating the workflow you just edited again. This will load the changes in 
+memory for ChangeGear. 
+
+10. Add the CanSave rule to the action where you want these custom rules/action to fire. 
+
+
+Testing 
+=======================================================================================================================
+
+1. Create test users and set their email address to an email address that you receive emails for (or edit existing users for this)
+
+2. Create a new test ticket while logged in as one of the test users and assign it the other test user. 
+
+3. Edit the description field and then perform action where the CanSave rule will fire for it. 
+
+4. Notice, under the history tab (and you should receive an email for this as well), that one of the custom actions were fired. 
+The custom action should be  Handle Description Field Change 1 because you are logged in as the Requester and because you 
+modified the description field. 
+
+5. Peform other tests according to the logic defined in the custom rules that were created for this. 
+
+
+
+
+

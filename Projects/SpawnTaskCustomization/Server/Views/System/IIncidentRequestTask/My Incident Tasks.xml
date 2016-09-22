@@ -1,0 +1,75 @@
+<View name="My Incident Tasks" type="SDInterfaces.Entities.IIncidentRequestTask" viewAs="Grid" ShowInNavigationPanel="true" viewGroup="My Views" canCustomizeInUI="false" IsCustomized="true">
+    <!--Default Incident tasks view -->
+    <Filter>
+        <Columns>
+            <Column name="SDInterfaces.Entities.IIncidentRequestTask.ID" width="0" colorder="-1" />
+            <Column name="SDInterfaces.Entities.IIncidentRequestTask.TaskID" width="80" colorder="0" />
+            <Column name="SDInterfaces.Entities.IIncidentRequestTask.Status" width="80" colorder="1" />
+            <Column name="SDInterfaces.Entities.IIncidentRequestTask.Summary" width="172" colorder="2" />
+            <Column name="SDInterfaces.Entities.IIncidentRequestTask.StartDate" width="92" colorder="3" />
+            <Column name="SDInterfaces.Entities.IIncidentRequestTask.CompletionDate" width="92" colorder="4" />
+            <Column name="SDInterfaces.Entities.IIncidentRequest.TicketID" width="80" colorder="5" />
+            <Column name="SDInterfaces.Entities.IIncidentRequestTask.IncidentItemID" width="0" colorder="-1" />
+        </Columns>
+        <Criteria>
+        </Criteria>
+    </Filter>
+    <Sorting>
+        <OrderBy sortorder="Descending">ItemID</OrderBy>
+    </Sorting>
+    <Groups />
+    <CustomQueries>
+        <Query><![CDATA[
+
+        				/* Adding this to get the OID of the team the current user belongs to */
+
+        				DECLARE @teamID int 
+
+						SET @teamID = (
+
+							SELECT Team
+							FROM VCG_PersonToTeam_Grid_View (nolock) 
+							WHERE Person=$(CURRENT_USER_ID)
+						)
+
+						SELECT VCG_IncidentRequestTask_Grid_View.OID As ID
+							,VCG_IncidentRequestTask_Grid_View.LastModifiedBy
+							,VCG_IncidentRequestTask_Grid_View.LastAccessedBy
+							,VCG_IncidentRequestTask_Grid_View.Creator
+							,VCG_IncidentRequestTask_Grid_View.CreatedDateTime
+							,VCG_IncidentRequestTask_Grid_View.LastModifiedDateTime
+							,VCG_IncidentRequestTask_Grid_View.ItemID
+							,VCG_IncidentRequestTask_Grid_View.ItemID as TaskID
+							,LEFT(VCG_IncidentRequestTask_Grid_View.Description,200) as Summary
+							,VCG_IncidentRequestTask_Grid_View.AssignedTo
+							,VCG_IncidentRequestTask_Grid_View.AssignedToFullName
+              ,VCG_IncidentRequestTask_Grid_View.Type
+							,VCG_IncidentRequestTask_Grid_View.Status
+							,VCG_IncidentRequestTask_Grid_View.StartDate
+							,VCG_IncidentRequestTask_Grid_View.CompletionDate
+							,VCG_IncidentRequestTask_Grid_View.Duration
+							,VCG_IncidentRequestTask_Grid_View.Effort
+							,VCG_IncidentRequestTask_Grid_View.[Order]
+							,CG_IncidentRequest.ItemID as TicketID
+							,CG_IncidentRequest.ItemID as IncidentItemID
+							,IncidentRequestIncidentRequestTasks as IncidentRequestTasks
+						FROM VCG_IncidentRequestTask_Grid_View
+						INNER JOIN CG_IncidentRequest ON VCG_IncidentRequestTask_Grid_View.IncidentRequestIncidentRequestTasks = CG_IncidentRequest.OID
+						WHERE 	
+							(
+								--VCG_IncidentRequestTask_Grid_View.AssignedTo =  $(CURRENT_USER_ID)
+								VCG_IncidentRequestTask_Grid_View.AssignedTo =  @teamID OR 
+								VCG_IncidentRequestTask_Grid_View.AssignedTo =  $(CURRENT_USER_ID)
+							)
+							AND 
+							(
+								(VCG_IncidentRequestTask_Grid_View.Status != 'Closed') 
+								AND (VCG_IncidentRequestTask_Grid_View.Status != 'Task Closed')
+								AND (CG_IncidentRequest.Status != 'Closed')
+							)
+							AND (VCG_IncidentRequestTask_Grid_View.GCRECORD IS NULL)
+					]]></Query>
+    </CustomQueries>
+    <EmptyViewMessage>
+    </EmptyViewMessage>
+</View>

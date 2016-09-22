@@ -1,0 +1,615 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<flow name="Incident_V3" type="SDInterfaces.Entities.IIncidentRequest,SDInterfaces" description="Used by Service Desk Incident" module="Incident">
+  <!-- Indicates types referenced in any "in-line" code -->
+  <Uses>
+    <Assembly name="ApplicationInterfaces.dll">
+      <Namespace><![CDATA[ApplicationInterfaces]]></Namespace>
+      <Namespace><![CDATA[ApplicationInterfaces.Entities]]></Namespace>
+      <Namespace><![CDATA[ApplicationInterfaces.EntityHandlers]]></Namespace>
+    </Assembly>
+    <Assembly name="SDInterfaces.dll">
+      <Namespace><![CDATA[SDInterfaces.Entities]]></Namespace>
+      <Namespace><![CDATA[SDInterfaces.EntityHandlers]]></Namespace>
+    </Assembly>
+    <Assembly name="XApplicationInterfaces.dll">
+      <Namespace><![CDATA[XApplicationInterfaces.Entities]]></Namespace>
+    </Assembly>
+    <Assembly name="Utilities.dll">
+      <Namespace><![CDATA[Utilities.Exceptions]]></Namespace>
+    </Assembly>
+    <Assembly name="WorkFlowEngineInterfaces.dll">
+      <Namespace><![CDATA[WorkFlowEngineInterfaces]]></Namespace>
+    </Assembly>
+    <Assembly name="CGWorkFlowUtils.dll">
+      <Namespace><![CDATA[CGWorkFlowUtils]]></Namespace>
+    </Assembly>
+  </Uses>
+  <UserVariables>
+    <!-- Essentially declares variables referenced in any in-line code
+		 The values for these variables must be set by the workflow engine
+		 consumer into the wfVariables collection (passed to PerformTransition).
+		 That is, in this example, "UserSession" would be a entry in the wfVariables
+		 collection who's value is a reference to a UserSession.  The type in the
+		 following variable is used to cast that value in the generated code. 
+		 -->
+    <UserVariable name="WorkflowArguments" type="WorkFlowEngineInterfaces.IWorkFlowStateTransitionEventArgs" defaultvalue="null" />
+    <UserVariable name="WorkflowInstance" type="WorkFlowEngineInterfaces.IWorkFlowEngine" defaultvalue="null" />
+    <UserVariable name="UserSession" type="ApplicationInterfaces.IUserSession" defaultvalue="null" />
+    <UserVariable name="Item" type="SDInterfaces.Entities.IIncidentRequest" defaultvalue="null" />
+  </UserVariables>
+  <Components>
+    <Component name="ChangeGearWorkFlows.Master">
+    </Component>
+    <Component name="ChangeGearWorkFlows.Modules.Rules">
+    </Component>
+  </Components>
+  <!--States -->
+  <nodes>
+    <node id="Unsubmitted" type="Start" ordinal="1" evaluateApprovers="False" timelinestate="New" timeline="New;In-Progress;Pending Close;Closed" action_buttons="Submit;Accept;Resolve" possibleInitialStates="" approveAction="" rejectAction="" pauseSLAClock="False" visibleOnStateDiag="True" showTemplateDropDown="True" activeTabOnForm="" />
+    <node id="New" type="Process" ordinal="2" evaluateApprovers="False" timelinestate="New" timeline="New;In-Progress;Pending Close;Closed" action_buttons="Accept;Resolve;Promote" possibleInitialStates="" approveAction="" rejectAction="" pauseSLAClock="False" visibleOnStateDiag="True" showTemplateDropDown="True" activeTabOnForm="" />
+    <node id="In-Progress" type="Process" ordinal="3" evaluateApprovers="False" timelinestate="In-Progress" timeline="New;In-Progress;Pending Close;Closed" action_buttons="Resolve;Promote;More Info;Requeue" possibleInitialStates="" approveAction="" rejectAction="" pauseSLAClock="False" visibleOnStateDiag="True" showTemplateDropDown="True" activeTabOnForm="" />
+    <node id="Waiting for Details" type="Process" ordinal="4" evaluateApprovers="False" timelinestate="More Info" timeline="More Info;New;In-Progress;Pending Close;Closed" action_buttons="Resubmit" possibleInitialStates="" approveAction="" rejectAction="" pauseSLAClock="True" visibleOnStateDiag="True" showTemplateDropDown="True" activeTabOnForm="" />
+    <node id="Pending Resolution" type="Process" ordinal="5" evaluateApprovers="False" timelinestate="Pending Resolution" timeline="New;In-Progress;Pending Resolution;Pending Close;Closed" action_buttons="Resolve Promotion;Requeue" possibleInitialStates="" approveAction="" rejectAction="" pauseSLAClock="True" visibleOnStateDiag="True" showTemplateDropDown="True" activeTabOnForm="" />
+    <node id="Pending Close" type="Process" ordinal="6" evaluateApprovers="False" timelinestate="Pending Close" timeline="New;In-Progress;Pending Close;Closed" action_buttons="Resolution Failed;Close" possibleInitialStates="" approveAction="" rejectAction="" pauseSLAClock="True" visibleOnStateDiag="True" showTemplateDropDown="True" activeTabOnForm="" />
+    <node id="Closed" type="End" ordinal="7" evaluateApprovers="False" timelinestate="Closed" timeline="New;In-Progress;Pending Close;Closed" action_buttons="Reopen" possibleInitialStates="" approveAction="" rejectAction="" pauseSLAClock="True" visibleOnStateDiag="True" showTemplateDropDown="True" activeTabOnForm="" />
+  </nodes>
+  <!--Actions -->
+  <actions>
+    <action name="AfterActionEvent" stateless="True" invokeAfterSave="false" internal="True" displayName="After Action" canDelete="false" showCommentsPopup="False" layout="" recalculateSLA="False" addToContextMenu="False">
+      <Reactions>
+      </Reactions>
+      <ProcessingRules>
+        <RuleReference>NotifyOnAssigneeOrOwnerChange</RuleReference>
+        <RuleReference>CanSave</RuleReference>
+      </ProcessingRules>
+    </action>
+    <action name="Submit" displayName="Submit" recalculateSLA="True" internal="False" stateless="False" showCommentsPopup="False" layout="" addToContextMenu="False">
+      <arguments>
+        <argument name="Code"><![CDATA[Item.SubmitDate = DateTime.Now.ToUniversalTime();]]></argument>
+      </arguments>
+      <Reactions>
+        <action name="Notify via Email" type="Notify via Email" id="1" description="" enabled="true" Provider="InLineCode">
+          <arguments>
+            <argument name="Code"><![CDATA[WorkFlowUtilities.AddComment(Item,wfVariables);]]></argument>
+          </arguments>
+          <notify template="Incident_Submitted" enabled="true" batch="false">
+            <recipients>
+              <recipient name="Requester">16</recipient>
+              <recipient name="Assignee">17</recipient>
+            </recipients>
+          </notify>
+        </action>
+      </Reactions>
+    </action>
+    <action name="Accept" displayName="Accept" internal="False" stateless="False" showCommentsPopup="False" layout="" recalculateSLA="False" addToContextMenu="False">
+      <arguments>
+        <argument name="Code"><![CDATA[WorkFlowUtilities.UpdateTicketAcceptTime(Item);]]></argument>
+      </arguments>
+      <Reactions>
+        <action name="Notify via Email" type="Notify via Email" id="1" description="" enabled="true" Provider="InLineCode">
+          <arguments>
+            <argument name="Code"><![CDATA[WorkFlowUtilities.AddComment(Item,WorkflowArguments.WFEVariables);]]></argument>
+          </arguments>
+          <notify template="Incident_Accept" enabled="false" extendedattributes="PreImplementationRule=false;PostImplementationRule=false">
+            <recipients>
+              <recipient>Incident Manager</recipient>
+            </recipients>
+          </notify>
+        </action>
+      </Reactions>
+    </action>
+    <action name="More Info" displayName="More Info">
+      <Reactions>
+        <action name="Notify via Email" type="Notify via Email" id="1" description="" enabled="true" Provider="InLineCode">
+          <arguments>
+            <argument name="Code"><![CDATA[WorkFlowUtilities.AddComment(Item,WorkflowArguments.WFEVariables);]]></argument>
+          </arguments>
+          <notify template="Incident_More Info Required" enabled="true" extendedattributes="PreImplementationRule=false;PostImplementationRule=false">
+            <recipients>
+              <recipient>Requester</recipient>
+            </recipients>
+          </notify>
+        </action>
+      </Reactions>
+    </action>
+    <action name="Requeue" displayName="Requeue">
+      <Reactions>
+        <action name="Notify via Email" type="Notify via Email" id="1" description="" enabled="true" Provider="InLineCode">
+          <arguments>
+            <argument name="Code"><![CDATA[WorkFlowUtilities.AddComment(Item,WorkflowArguments.WFEVariables);]]></argument>
+          </arguments>
+          <notify template="Incident_Requeued" enabled="false" extendedattributes="PreImplementationRule=false;PostImplementationRule=false">
+            <recipients>
+              <recipient>Incident Manager</recipient>
+            </recipients>
+          </notify>
+        </action>
+      </Reactions>
+    </action>
+    <action name="Resolve" displayName="Resolve" showCommentsPopup="true" layout="CloseTypeComment">
+      <arguments>
+        <argument name="Code"><![CDATA[ WorkFlowUtilities.UpdateTicketResolveTime(Item,WorkflowArguments);]]></argument>
+      </arguments>
+      <Reactions>
+        <action name="Notify via Email" type="Notify via Email" id="1" description="" enabled="true" Provider="InLineCode">
+          <arguments>
+            <argument name="Code"><![CDATA[WorkFlowUtilities.AddComment(Item,WorkflowArguments.WFEVariables);]]></argument>
+          </arguments>
+          <notify template="Incident_Resolved" enabled="true" extendedattributes="PreImplementationRule=false;PostImplementationRule=false">
+            <recipients>
+              <recipient>Requester</recipient>
+            </recipients>
+          </notify>
+        </action>
+      </Reactions>
+    </action>
+    <action name="Resolve Promotion" displayName="Resolve Promotion">
+      <Reactions>
+        <action name="Notify via Email" type="Notify via Email" id="1" description="" enabled="true" Provider="InLineCode">
+          <arguments>
+            <argument name="Code"><![CDATA[WorkFlowUtilities.AddComment(Item,WorkflowArguments.WFEVariables);]]></argument>
+          </arguments>
+          <notify template="Incident_Resolve Promotion" enabled="true" extendedattributes="PreImplementationRule=false;PostImplementationRule=false">
+            <recipients>
+              <recipient>Assignee</recipient>
+              <recipient>Incident Manager</recipient>
+            </recipients>
+          </notify>
+        </action>
+      </Reactions>
+    </action>
+    <action name="Promote" displayName="Promote" addToContextMenu="True">
+      <arguments>
+        <argument name="Code"><![CDATA[WorkFlowUtilities.Promote(UserSession,Item,WorkflowArguments.WFEVariables);WorkFlowUtilities.UpdateTicketAcceptTime(Item);]]></argument>
+      </arguments>
+      <Reactions>
+        <action name="Notify via Email" type="Notify via Email" id="1" description="" enabled="true" Provider="InLineCode">
+          <arguments>
+            <argument name="Code"><![CDATA[WorkFlowUtilities.AddComment(Item,WorkflowArguments.WFEVariables); WorkFlowUtilities.UpdateTicketAcceptTime(Item);]]></argument>
+          </arguments>
+          <notify template="Incident_Promoted" enabled="true" extendedattributes="PreImplementationRule=false;PostImplementationRule=false">
+            <recipients>
+              <recipient>Incident Manager</recipient>
+            </recipients>
+          </notify>
+        </action>
+      </Reactions>
+    </action>
+    <action name="Close" Provider="InLineCode" displayName="Close" showCommentsPopup="true" layout="CloseTypeComment" addToContextMenu="True">
+      <arguments>
+        <argument name="Code"><![CDATA[if (Item.BusinessTimeToResolve == System.TimeSpan.MinValue) { WorkFlowUtilities.UpdateTicketResolveTime(Item,WorkflowArguments); }
+		   if(Item.CompletedDate == System.DateTime.MinValue)
+				{
+					Hashtable ht = new Hashtable();ht["CompletedDate"] = CGDateTime.UtcNow;
+					WorkFlowUtilities.UpdateValue(UserSession,typeof(IIncidentRequest),Item,ht);
+				}]]></argument>
+      </arguments>
+      <Reactions>
+        <action name="Notify via Email" type="Notify via Email" id="1" description="" enabled="true" Provider="InLineCode">
+          <arguments>
+            <argument name="Code"><![CDATA[WorkFlowUtilities.AddComment(Item,WorkflowArguments.WFEVariables);]]></argument>
+          </arguments>
+          <notify template="Incident_Closed" enabled="true" extendedattributes="PreImplementationRule=false;PostImplementationRule=false">
+            <recipients>
+              <recipient>Assignee</recipient>
+              <recipient>Requester</recipient>
+            </recipients>
+          </notify>
+        </action>
+      </Reactions>
+      <ProcessingRules>
+        <RuleReference>SetClosedDateTimeToNow</RuleReference>
+      </ProcessingRules>
+    </action>
+    <action name="Reopen" displayName="Reopen">
+      <Reactions>
+        <action name="Notify via Email" type="Notify via Email" id="1" description="" enabled="true" Provider="InLineCode">
+          <arguments>
+            <argument name="Code"><![CDATA[WorkFlowUtilities.AddComment(Item,WorkflowArguments.WFEVariables);]]></argument>
+          </arguments>
+          <notify template="Incident_Reopened" enabled="true" extendedattributes="PreImplementationRule=false;PostImplementationRule=false">
+            <recipients>
+              <recipient>Assignee</recipient>
+              <recipient>Incident Manager</recipient>
+            </recipients>
+          </notify>
+        </action>
+      </Reactions>
+      <ProcessingRules>
+        <RuleReference>ClearClosedDateTime</RuleReference>
+      </ProcessingRules>
+    </action>
+    <action name="Resubmit" displayName="Resubmit">
+      <Reactions>
+        <action name="Notify via Email" type="Notify via Email" id="1" description="" enabled="true" Provider="InLineCode">
+          <arguments>
+            <argument name="Code"><![CDATA[WorkFlowUtilities.AddComment(Item,WorkflowArguments.WFEVariables);]]></argument>
+          </arguments>
+          <notify template="Incident_Resubmitted" enabled="true" extendedattributes="PreImplementationRule=false;PostImplementationRule=false">
+            <recipients>
+              <recipient>Assignee</recipient>
+            </recipients>
+          </notify>
+        </action>
+      </Reactions>
+    </action>
+    <action name="Resolution Failed" displayName="Resolution Failed">
+      <Reactions>
+        <action name="Notify via Email" type="Notify via Email" id="1" description="" enabled="true" Provider="InLineCode">
+          <arguments>
+            <argument name="Code"><![CDATA[WorkFlowUtilities.AddComment(Item,WorkflowArguments.WFEVariables);]]></argument>
+          </arguments>
+          <notify template="Incident_Failed Resolution" enabled="true" extendedattributes="PreImplementationRule=false;PostImplementationRule=false">
+            <recipients>
+              <recipient>Assignee</recipient>
+            </recipients>
+          </notify>
+        </action>
+      </Reactions>
+    </action>
+    <action name="Handle Reassign" displayName="Handle Reassign">
+      <ProcessingRules>
+        <RuleReference>HasAssigneeChanged</RuleReference>
+      </ProcessingRules>
+      <Reactions>
+        <action name="Notify via Email" type="Notify via Email" id="1" description="" enabled="true" Provider="InLineCode">
+          <arguments>
+            <argument name="Code"><![CDATA[WorkFlowUtilities.AddComment(Item,WorkflowArguments.WFEVariables);]]></argument>
+          </arguments>
+          <notify template="Incident_Reassigned" enabled="true" extendedattributes="PreImplementationRule=false;PostImplementationRule=false">
+            <recipients>
+              <recipient>Assignee</recipient>
+            </recipients>
+          </notify>
+        </action>
+      </Reactions>
+    </action>
+    <action name="Handle Owner Change" displayName="Handle Owner Change">
+      <ProcessingRules>
+        <RuleReference>HasOwnerChanged</RuleReference>
+      </ProcessingRules>
+      <Reactions>
+        <action name="Notify via Email" type="Notify via Email" id="1" description="" enabled="true" Provider="InLineCode">
+          <arguments>
+            <argument name="Code"><![CDATA[WorkFlowUtilities.AddComment(Item,WorkflowArguments.WFEVariables);]]></argument>
+          </arguments>
+          <notify template="Incident Owner Change" enabled="true" extendedattributes="PreImplementationRule=false;PostImplementationRule=false">
+            <recipients>
+              <recipient>Owner</recipient>
+            </recipients>
+          </notify>
+        </action>
+      </Reactions>
+    </action>
+
+    <!-- Start Description Field Change 1 Action -->
+    <action name="Handle Description Field Change 1" displayName="Handle Description Field Change 1" internal="False" stateless="False" showCommentsPopup="False" layout="" recalculateSLA="False" addToContextMenu="False">
+      <Reactions>
+        <action name="Changed by Requester Notification" type="Notify via Email" id="1" description="" enabled="true" Provider="InLineCode">
+          <arguments>
+            <argument name="Code"><![CDATA[WorkFlowUtilities.AddComment(Item,wfVariables);]]></argument>
+          </arguments>
+          <notify template="Incident_V3_Handle Description Field Change 1_Notify via Email1" enabled="true" batch="false">
+            <recipients>
+              <recipient name="Assignee">17</recipient>
+            </recipients>
+          </notify>
+        </action>
+      </Reactions>
+      <ProcessingRules>
+        <RuleReference>HasDescriptionFieldValueChangedByRequester</RuleReference>
+      </ProcessingRules>
+    </action>
+    <!-- End Description Field Change 1 Action -->
+    
+    <!-- Start Description Field Change 2 Action -->
+    <action name="Handle Description Field Change 2" displayName="Handle Description Field Change 2" internal="False" stateless="False" showCommentsPopup="False" layout="" recalculateSLA="False" addToContextMenu="False">
+      <Reactions>
+        <action name="Changed by Assignee" type="Notify via Email" id="1" description="" enabled="true" Provider="InLineCode">
+          <arguments>
+            <argument name="Code"><![CDATA[WorkFlowUtilities.AddComment(Item,wfVariables);]]></argument>
+          </arguments>
+          <notify template="Incident_V3_Handle Description Field Change 2_Notify via Email1" enabled="true" batch="false">
+            <recipients>
+              <recipient name="Requester">16</recipient>
+            </recipients>
+          </notify>
+        </action>
+      </Reactions>
+      <ProcessingRules>
+        <RuleReference>HasDescriptionFieldValueChangedByAssignee</RuleReference>
+      </ProcessingRules>
+    </action>
+    <!-- End Description Field Change 2 Action -->
+
+
+    <!-- Start Description Field Change 3 Action -->
+    <action name="Handle Description Field Change 3" displayName="Handle Description Field Change 3" internal="False" stateless="False" showCommentsPopup="False" layout="" recalculateSLA="False" addToContextMenu="False">
+      <Reactions>
+        <action name="Changed by Other." type="Notify via Email" id="1" description="" enabled="true" Provider="InLineCode">
+          <arguments>
+            <argument name="Code"><![CDATA[WorkFlowUtilities.AddComment(Item,wfVariables);]]></argument>
+          </arguments>
+          <notify template="Incident_V3_Handle Description Field Change 3_Notify via Email" enabled="true" batch="false">
+            <recipients>
+              <recipient name="Requester">16</recipient>
+              <recipient name="Assignee">17</recipient>
+            </recipients>
+          </notify>
+        </action>
+      </Reactions>
+      <ProcessingRules>
+        <RuleReference>HasDescriptionFieldValueChangedByOther</RuleReference>
+      </ProcessingRules>
+    </action>
+    <!-- End Description Field Change 3 Action -->
+
+    <action name="Save" stateless="True" displayName="Save" canDelete="false" internal="False" showCommentsPopup="False" layout="" recalculateSLA="False" addToContextMenu="False">
+    </action>
+  </actions>
+  <Rules>
+    <Rule name="DetermineAssignee"><![CDATA[Item.DetermineAssignee();return true;]]></Rule>
+    <Rule name="ClearAssignee"><![CDATA[if (Item.AssignedTo != null){Item.AssignedTo=null;}return true;]]></Rule>
+    <Rule name="AssignToCurrentUser"><![CDATA[if (Item.AssignedTo == null){Item.AssignedTo=UserSession.GetCurrentUser(Item.UnitOfWork);}return true;]]></Rule>
+    <Rule name="HasAssigneeChanged"><![CDATA[return WorkFlowUtilities.HasAssigneeChanged(UserSession,(WorkFlowEngineInterfaces.IWorkFlowManageable)Item,WorkflowArguments.WFEVariables);]]></Rule>
+    <Rule name="SetCompleteDate"><![CDATA[if(Item.CompletedDate == System.DateTime.MinValue){Item.CompletedDate = CGDateTime.UtcNow;}return true;]]></Rule>
+    <Rule name="AreAllTasksCompleted"><![CDATA[bool tasksCompleted = true;
+            if (Item.IncidentRequestTasks.Count > 0)
+            {
+                foreach (IIncidentRequestTask task in Item.IncidentRequestTasks)
+                {
+                    if (task.Status.ToLower() != "task closed")
+                    {
+                        tasksCompleted = false;
+                        break;
+                    }
+                }
+                if (!tasksCompleted)
+                {
+                    ExceptionHandler.Instance.RaiseException("WorkFlowEngine", "You cannot perform the requested action without completing the task(s)", "You cannot perform the requested action without completing the task(s)");
+                }
+            }
+            return tasksCompleted;]]></Rule>
+    <Rule name="InBusinessTime" errorMessage="Due Date selected is outside of business hours."><![CDATA[if(((XApplicationInterfaces.Entities.IXApplicationEntity)Item).InBusinessTime(
+		((IIncidentRequest)Item).DueDate) == false)
+			ExceptionHandler.Instance.RaiseException(
+				"WorkFlowEngine","Due Date selected is outside of business hours.",
+				"Due Date selected is outside of business hours."); return true; ]]></Rule>
+    <Rule name="HasOwnerChanged"><![CDATA[WorkflowArguments.WFEVariables["AssigneeFieldName"] = "Owner";return WorkFlowUtilities.HasAssigneeChanged(UserSession,(WorkFlowEngineInterfaces.IWorkFlowManageable)Item,WorkflowArguments.WFEVariables);]]></Rule>
+    <Rule name="CanSave"><![CDATA[return true;]]><Reactions><Fire action="MainWorkFlow:Handle Reassign" /><Fire action="MainWorkFlow:Handle Owner Change" /><Fire action="MainWorkFlow:Handle Description Field Change 1" /><Fire action="MainWorkFlow:Handle Description Field Change 2" /><Fire action="MainWorkFlow:Handle Description Field Change 3" /></Reactions></Rule>
+    
+
+
+    <!-- Start Has Description Field Changed by Requester Rule -->
+    <Rule name="HasDescriptionFieldValueChangedByRequester"><![CDATA[
+
+          int ticketAssigneeID;
+
+          if(Item.AssignedTo == null){
+
+            ticketAssigneeID = 0;
+
+          } else {
+
+             sLogger.Info("line3");
+             ticketAssigneeID = Item.AssignedTo.ID;
+
+          }
+
+           int ticketRequesterID = Item.Requester.ID;
+           
+           int loggedInUserID = UserSession.GetCurrentUser(Item.UnitOfWork).ID;
+ 
+
+           if (ticketRequesterID == loggedInUserID && ticketAssigneeID != loggedInUserID)  {
+
+
+            sLogger.Info("requester updated ticket.");
+            
+                  if (wfVariables["ModifiedFields"] != null && Item.ID > 0)
+                  {
+                      if (wfVariables["ModifiedFields"] is Hashtable)
+                      {
+                          Hashtable modifiedFields = wfVariables["ModifiedFields"] as Hashtable;
+                          if (modifiedFields.ContainsKey("Description"))//to check if another field has changed, add an or condition like if (modifiedFields.ContainsKey("Description") || modifiedFields.ContainsKey("Notes"))
+                          {
+                              return true;
+                          }                    
+                      }
+                  }
+
+                  return false;
+
+            } else {
+
+              return false; 
+
+            }
+
+
+       ]]></Rule>
+    <!-- End Has Description Field Changed by Requester Rule -->
+
+
+    <!-- Start Has Description Field Changed by Assignee Rule -->
+    <Rule name="HasDescriptionFieldValueChangedByAssignee"><![CDATA[
+
+          int ticketAssigneeID;
+
+          if(Item.AssignedTo == null){
+
+            ticketAssigneeID = 0;
+
+          } else {
+
+             
+             ticketAssigneeID = Item.AssignedTo.ID;
+
+          }
+
+
+
+           int ticketRequesterID = Item.Requester.ID;
+           
+           int loggedInUserID = UserSession.GetCurrentUser(Item.UnitOfWork).ID;
+  
+           if (ticketAssigneeID == loggedInUserID && ticketRequesterID != loggedInUserID )  {
+
+            sLogger.Info("assignee updated ticket.");
+
+                  if (wfVariables["ModifiedFields"] != null && Item.ID > 0)
+                  {
+                      if (wfVariables["ModifiedFields"] is Hashtable)
+                      {
+                          Hashtable modifiedFields = wfVariables["ModifiedFields"] as Hashtable;
+                          if (modifiedFields.ContainsKey("Description"))//to check if another field has changed, add an or condition like if (modifiedFields.ContainsKey("Description") || modifiedFields.ContainsKey("Notes"))
+                          {
+                              return true;
+                          }                    
+                      }
+                  }
+
+                  return false;
+
+            } else {
+
+                return false; 
+
+            }
+              
+
+
+       ]]></Rule>
+    <!-- End Has Description Field Changed by Assignee Rule -->
+
+
+    <!-- Start Has Description Field Changed by Other Rule -->
+    <Rule name="HasDescriptionFieldValueChangedByOther"><![CDATA[
+
+          int ticketAssigneeID;
+
+          if(Item.AssignedTo == null){
+
+            ticketAssigneeID = 0;
+
+          } else {
+
+             
+             ticketAssigneeID = Item.AssignedTo.ID;
+
+          }
+
+
+           int ticketRequesterID = Item.Requester.ID;
+           
+           int loggedInUserID = UserSession.GetCurrentUser(Item.UnitOfWork).ID;
+ 
+           if (ticketRequesterID != loggedInUserID && ticketAssigneeID != loggedInUserID)  {
+
+            sLogger.Info("neitheir the assignee or requester updated ticket.");
+            
+                  if (wfVariables["ModifiedFields"] != null && Item.ID > 0)
+                  {
+                      if (wfVariables["ModifiedFields"] is Hashtable)
+                      {
+                          Hashtable modifiedFields = wfVariables["ModifiedFields"] as Hashtable;
+                          if (modifiedFields.ContainsKey("Description"))//to check if another field has changed, add an or condition like if (modifiedFields.ContainsKey("Description") || modifiedFields.ContainsKey("Notes"))
+                          {
+                              return true;
+                          }                    
+                      }
+                  }
+
+                  return false;
+
+            } else {
+
+              return false; 
+
+            }
+
+
+       ]]></Rule>
+       <!-- End Has Description Field Changed by Other Rule -->
+
+  </Rules>
+  <!--Transitions -->
+  <!--Notes: Adding two transitions with the same name,same "from" states but different "to" states is not allowed-->
+  <transitions>
+    <!--Transitions from Unsubmitted state-->
+    <transition name="Submit" id="91" from="Unsubmitted" to="New">
+      <TransitionRules>
+        <TransitionRuleReference>DetermineAssignee</TransitionRuleReference>
+      </TransitionRules>
+    </transition>
+    <transition name="Resolve" id="92" from="Unsubmitted" to="Pending Close">
+    </transition>
+    <transition name="Accept" id="93" from="Unsubmitted" to="In-Progress">
+      <TransitionRules>
+        <TransitionRuleReference>AssignToCurrentUser</TransitionRuleReference>
+      </TransitionRules>
+    </transition>
+    <!--Transitions from New state-->
+    <transition name="Promote" id="94" from="New" to="Pending Resolution">
+      <TransitionRules>
+        <TransitionRuleReference>AssignToCurrentUser</TransitionRuleReference>
+      </TransitionRules>
+    </transition>
+    <transition name="Accept" id="95" from="New" to="In-Progress">
+      <TransitionRules>
+        <TransitionRuleReference>AssignToCurrentUser</TransitionRuleReference>
+      </TransitionRules>
+    </transition>
+    <transition name="Resolve" id="96" from="New" to="Pending Close">
+    </transition>
+    <!--Transitions from In-Progress state-->
+    <transition name="Resolve" id="97" from="In-Progress" to="Pending Close">
+    </transition>
+    <transition name="Promote" id="98" from="In-Progress" to="Pending Resolution">
+      <TransitionRules>
+        <TransitionRuleReference>AssignToCurrentUser</TransitionRuleReference>
+      </TransitionRules>
+    </transition>
+    <transition name="Requeue" id="99" from="In-Progress" to="New">
+      <TransitionRules>
+        <TransitionRuleReference>ClearAssignee</TransitionRuleReference>
+      </TransitionRules>
+    </transition>
+    <transition name="More Info" id="100" from="In-Progress" to="Waiting for Details">
+    </transition>
+    <!--Transitions from Waiting for Details state-->
+    <transition name="Resubmit" id="101" from="Waiting for Details" to="In-Progress">
+    </transition>
+    <!--Transitions from Pending Resolution state-->
+    <transition name="Resolve Promotion" id="102" from="Pending Resolution" to="In-Progress">
+    </transition>
+    <transition name="Requeue" id="103" from="Pending Resolution" to="New">
+      <TransitionRules>
+        <TransitionRuleReference>ClearAssignee</TransitionRuleReference>
+      </TransitionRules>
+    </transition>
+    <!--Transitions from Pending Close state-->
+    <transition name="Resolution Failed" id="104" from="Pending Close" to="In-Progress">
+    </transition>
+    <transition name="Close" id="105" from="Pending Close" to="Closed">
+    </transition>
+    <!--Transitions from Closed state-->
+    <!--transition name="Save" from="Closed" to="Closed">
+      <TransitionRules>
+        <TransitionRuleReference>SetCompleteDate</TransitionRuleReference>
+      </TransitionRules>
+    </transition-->
+    <transition name="Reopen" id="106" from="Closed" to="New">
+    </transition>
+    <transition name="Close" id="107" from="New" to="Closed">
+    </transition>
+    <transition name="Close" id="108" from="Unsubmitted" to="Closed">
+    </transition>
+    <transition name="Close" id="109" from="In-Progress" to="Closed">
+    </transition>
+    <transition name="Close" id="110" from="Waiting for Details" to="Closed">
+    </transition>
+    <transition name="Close" id="111" from="Pending Resolution" to="Closed">
+    </transition>
+  </transitions>
+</flow>
