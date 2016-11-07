@@ -147,7 +147,6 @@ foreach (string fieldName in fieldNames) {
 
 
 /* Email Distribution List Fields */ 
-
 string consultantEmailDistributionList = (((I_UDT_IncidentRequest_Extended)Item).UDF_ConsultantEmailDistributionList);
 
 if (consultantEmailDistributionList != "") {
