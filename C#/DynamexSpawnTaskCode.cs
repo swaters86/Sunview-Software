@@ -1,5 +1,4 @@
 /* Start Access Requirements Grouping for New Consultant or Contractor Section */
-
 int consultantRemoteAccess = (((I_UDT_IncidentRequest_Extended)Item).UDF_ConsultantRemoteAccess).ID;
 
 int consultantQuickViewDashboardAcess = (((I_UDT_IncidentRequest_Extended)Item).UDF_ConsultantQuickViewDashboardAcess).ID;
